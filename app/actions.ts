@@ -24,35 +24,51 @@ export async function createInvoice(formData: FormData) {
   const amountInCents = amount*100;
   const date = new Date().toISOString().split("T")[0]
 
-  await sql`
-    INSERT INTO invoices (customerId, amount, status, date)
-    VALUES (${customerID}, ${amountInCents}, ${status}, ${date})
-  `
+  try {
+    await sql`
+      INSERT INTO invoices (customerId, amount, status, date)
+      VALUES (${customerID}, ${amountInCents}, ${status}, ${date})
+    `
+  }
+  catch (error){
+    return {message:"DB ERROR: Unable to create invoice"}
+  }
   revalidatePath("/dashboard/invoices")
   redirect("/dashboard/invoices")
 }
 
 
 const UpdateInvoiceFormSchema = FormSchema.omit({id:true, date:true})
-
 export async function updateInvoice(id:string,formData: FormData) {
-    const {customerID, amount, status } = CreateInvoiceFormSchema.parse({
+  const {customerID, amount, status } = UpdateInvoiceFormSchema.parse({
     customerID : formData.get("customerId"),
     amount : formData.get("amount"),
     status : formData.get("status"),
   })
+
   const amountInCents = amount*100;
 
-  await sql`
-    UPDATE invoices 
-    set customerId = ${customerID}, amount = ${amountInCents}, status = ${status}
-    WHERE id = ${id}
-  `
+  try {
+    await sql`
+      UPDATE invoices 
+      set customerId = ${customerID}, amount = ${amountInCents}, status = ${status}
+      WHERE id = ${id}
+    `
+  }
+  catch (error){
+    return {message:"DB ERROR: Unable to edit invoice"}
+  }
   revalidatePath("/dashboard/invoices")
   redirect("/dashboard/invoices")
 }
 
 export async function deleteInvoice(id:string) {
-  await sql`DELETE FROM invoices WHERE id = ${id}`
-  revalidatePath("/dashboard/invoices")
+  try {
+    await sql`DELETE FROM invoices WHERE id = ${id}`
+    revalidatePath("/dashboard/invoices")
+    return {message:"Delete Invoice"}
+  }
+  catch (error) {
+    return {message: "DB ERROR: Unable to delete Invoice"}
+  }
 }
