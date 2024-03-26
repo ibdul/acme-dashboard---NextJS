@@ -7,20 +7,40 @@ import { z } from 'zod'
 
 const FormSchema = z.object({
   id : z.string(),
-  customerID : z.string(),
-  amount : z.coerce.number(),
-  status : z.enum(['pending', 'paid']),
+  customerID : z.string({invalid_type_error: "Please select a customer"}),
+  amount : z.coerce.number().gt(0,{message: "You need to insert a value greater than 0"}),
+  status : z.enum(['pending', 'paid'], {
+    invalid_type_error: "Please select an invoice status"
+  }),
   date: z.string()
 })
 
+export type State = {
+  errors?: {
+    customerID?: string[];
+    amount?: string[];
+    status?: string[];
+  };
+  message?: string;
+}
+
 const CreateInvoiceFormSchema = FormSchema.omit({id:true, date:true})
 
-export async function createInvoice(formData: FormData) {
-    const {customerID,  amount, status } = CreateInvoiceFormSchema.parse({
+export async function createInvoice(prev_state:State, formData: FormData) {
+  const validateFields = CreateInvoiceFormSchema.safeParse({
     customerID : formData.get("customerId"),
     amount : formData.get("amount"),
     status : formData.get("status"),
   })
+  if (!validateFields.success){
+    return {
+      errors: validateFields.error.flatten().fieldErrors,
+      message: "Missing Fields. Failed to perform operation"
+    }
+  }
+
+  const {customerID,  amount, status }  = validateFields.data
+
   const amountInCents = amount*100;
   const date = new Date().toISOString().split("T")[0]
 
@@ -39,13 +59,21 @@ export async function createInvoice(formData: FormData) {
 
 
 const UpdateInvoiceFormSchema = FormSchema.omit({id:true, date:true})
-export async function updateInvoice(id:string,formData: FormData) {
-  const {customerID, amount, status } = UpdateInvoiceFormSchema.parse({
+export async function updateInvoice(id:string, prev_state:State, formData: FormData) {
+  const validateFields = UpdateInvoiceFormSchema.safeParse({
     customerID : formData.get("customerId"),
     amount : formData.get("amount"),
     status : formData.get("status"),
   })
 
+  if (!validateFields.success){
+    return {
+      errors : validateFields.error.flatten().fieldErrors,
+      message: "Missing Fields. Unable to perform operation"
+    }
+  }
+
+  const {customerID, amount, status } = validateFields.data
   const amountInCents = amount*100;
 
   try {
